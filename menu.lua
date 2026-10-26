@@ -54,7 +54,7 @@ task.spawn(function()
 	while loadGui.Parent do
 		dots = (dots + 1) % 4
 		loadText.Text = "LOADING" .. string.rep(".", dots)
-		t += task.wait(0.25)
+		t += task.wait(1)
 		loadGrad.Offset = Vector2.new(math.sin(t * 2) * 0.5, 0)
 	end
 end)
