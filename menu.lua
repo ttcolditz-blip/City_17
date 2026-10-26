@@ -118,6 +118,7 @@ local function init()
 				["FastHeadcrab"] = true,
 				["FastZombie"] = true,
 				["ClassicZombie"] = true,
+				["PoisonHeadcrab"] = true,
 			},
 		},
 		hitbox = {
