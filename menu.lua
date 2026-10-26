@@ -1023,7 +1023,7 @@ task.spawn(function()
 		tween(barBack, {BackgroundTransparency = 1}, 0.2)
 		tween(barFill, {BackgroundTransparency = 1}, 0.2)
 	end)
-	task.wait(0.2)
+	task.wait(1)
 	if loadGui.Parent then
 		loadGui:Destroy()
 	end
