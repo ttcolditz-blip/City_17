@@ -554,6 +554,84 @@ local function init()
 	end
 
 	----------------------------------------------------------------
+	-- МОДУЛЬ 6: ВЫДЕЛЕНИЕ ИГРОКА ПО НИКУ (зелёная подсветка)
+	----------------------------------------------------------------
+	local highlightedPlayers = {} -- [Name] = true
+	local refreshHighlightList = nil -- назначим позже, в UI
+
+	local function highlightOnPlayer(target)
+		local char = target.Character
+		if not char then return end
+		local h = char:FindFirstChild("PlayerSelectHighlight")
+		if not h then
+			h = Instance.new("Highlight")
+			h.Name = "PlayerSelectHighlight"
+			h.FillColor = Color3.fromRGB(0, 255, 0)
+			h.OutlineColor = Color3.fromRGB(0, 255, 0)
+			h.FillTransparency = 0.4
+			h.OutlineTransparency = 0
+			h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+			h.Parent = char
+		end
+		h.Enabled = true
+	end
+
+	local function clearHighlightFrom(target)
+		local char = target.Character
+		if char then
+			local h = char:FindFirstChild("PlayerSelectHighlight")
+			if h then h:Destroy() end
+		end
+	end
+
+	local function findPlayerByNick(nick)
+		nick = nick:lower()
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= player and (p.Name:lower() == nick or p.DisplayName:lower() == nick) then
+				return p
+			end
+		end
+		return nil
+	end
+
+	local function addHighlighted(target)
+		if highlightedPlayers[target.Name] then return end
+		highlightedPlayers[target.Name] = true
+		highlightOnPlayer(target)
+	end
+
+	local function removeHighlighted(name)
+		highlightedPlayers[name] = nil
+		local p = Players:FindFirstChild(name)
+		if p then clearHighlightFrom(p) end
+	end
+
+	-- держим подсветку на месте (новый персонаж / перезаход) и чистим список от вышедших
+	task.spawn(function()
+		while true do
+			task.wait(0.5)
+			local seen = {}
+			for _, p in ipairs(Players:GetPlayers()) do
+				if highlightedPlayers[p.Name] then
+					seen[p.Name] = true
+					if p.Character then
+						local h = p.Character:FindFirstChild("PlayerSelectHighlight")
+						if not h then highlightOnPlayer(p) end
+					end
+				end
+			end
+			local changed = false
+			for name in pairs(highlightedPlayers) do
+				if not seen[name] then
+					highlightedPlayers[name] = nil
+					changed = true
+				end
+			end
+			if changed and refreshHighlightList then refreshHighlightList() end
+		end
+	end)
+
+	----------------------------------------------------------------
 	-- ЕДИНОЕ МЕНЮ
 	----------------------------------------------------------------
 	Frame = Instance.new("ImageLabel")
@@ -561,7 +639,7 @@ local function init()
 	Frame.BackgroundTransparency = 1
 	Frame.BorderSizePixel = 0
 	Frame.Position = UDim2.new(0.157, 0, 0.07, 0)
-	Frame.Size = UDim2.new(0, 190, 0, 360)
+	Frame.Size = UDim2.new(0, 190, 0, 420)
 	Frame.Visible = false
 	Frame.Image = "rbxassetid://3570695787"
 	Frame.ImageColor3 = Color3.fromRGB(49, 49, 49)
@@ -920,6 +998,185 @@ local function init()
 		hitboxLabel.Text = ("Размер хитбокса краба: %.1f"):format(S.hitbox.size)
 		hitboxFill.Size = UDim2.new((S.hitbox.size - S.hitbox.min) / (S.hitbox.max - S.hitbox.min), 0, 1, 0)
 	end
+
+	-- ---- блок Выделение игрока ----
+	local hlBtn = Instance.new("TextButton")
+	hlBtn.Parent = Frame
+	hlBtn.Size = UDim2.new(0.9, 0, 0, 26)
+	hlBtn.Position = UDim2.new(0.05, 0, 0, 312)
+	hlBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	hlBtn.TextColor3 = Color3.new(1, 1, 1)
+	hlBtn.Font = Enum.Font.GothamBold
+	hlBtn.TextSize = 14
+	hlBtn.Text = "Выделение игрока ▶"
+	hlBtn:SetAttribute("BaseColor", Color3.fromRGB(70, 70, 70))
+	local chl = Instance.new("UICorner")
+	chl.CornerRadius = UDim.new(0, 8)
+	chl.Parent = hlBtn
+	addHoverEffect(hlBtn)
+
+	local hlFrame = Instance.new("Frame")
+	hlFrame.Size = UDim2.new(0, 170, 0, 168)
+	hlFrame.Position = UDim2.new(1, 20, 0, 200)
+	hlFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	hlFrame.BackgroundTransparency = 0.2
+	hlFrame.Visible = false
+	hlFrame.Parent = Frame
+	local chl2 = Instance.new("UICorner")
+	chl2.CornerRadius = UDim.new(0, 8)
+	chl2.Parent = hlFrame
+
+	local HL_OPEN = UDim2.new(1, 6, 0, 200)
+	local HL_CLOSED = UDim2.new(1, 20, 0, 200)
+
+	local nickBox = Instance.new("TextBox")
+	nickBox.Parent = hlFrame
+	nickBox.Size = UDim2.new(1, -12, 0, 24)
+	nickBox.Position = UDim2.new(0, 6, 0, 6)
+	nickBox.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+	nickBox.TextColor3 = Color3.new(1, 1, 1)
+	nickBox.PlaceholderText = "Ник игрока..."
+	nickBox.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+	nickBox.Font = Enum.Font.Gotham
+	nickBox.TextSize = 13
+	nickBox.Text = ""
+	nickBox.ClearTextOnFocus = false
+	local cnb = Instance.new("UICorner")
+	cnb.CornerRadius = UDim.new(0, 6)
+	cnb.Parent = nickBox
+
+	local statusLabel = Instance.new("TextLabel")
+	statusLabel.Size = UDim2.new(1, -12, 0, 14)
+	statusLabel.Position = UDim2.new(0, 6, 0, 32)
+	statusLabel.BackgroundTransparency = 1
+	statusLabel.TextColor3 = Color3.fromRGB(255, 120, 120)
+	statusLabel.Font = Enum.Font.Gotham
+	statusLabel.TextSize = 11
+	statusLabel.Text = ""
+	statusLabel.Parent = hlFrame
+
+	local addBtn = Instance.new("TextButton")
+	addBtn.Parent = hlFrame
+	addBtn.Size = UDim2.new(1, -12, 0, 24)
+	addBtn.Position = UDim2.new(0, 6, 0, 48)
+	addBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 60)
+	addBtn.TextColor3 = Color3.new(1, 1, 1)
+	addBtn.Font = Enum.Font.GothamBold
+	addBtn.TextSize = 13
+	addBtn.Text = "Выделить"
+	addBtn:SetAttribute("BaseColor", Color3.fromRGB(0, 130, 60))
+	local cab = Instance.new("UICorner")
+	cab.CornerRadius = UDim.new(0, 6)
+	cab.Parent = addBtn
+	addHoverEffect(addBtn)
+
+	local listFrame = Instance.new("ScrollingFrame")
+	listFrame.Size = UDim2.new(1, -12, 0, 80)
+	listFrame.Position = UDim2.new(0, 6, 0, 78)
+	listFrame.BackgroundTransparency = 1
+	listFrame.BorderSizePixel = 0
+	listFrame.ScrollBarThickness = 3
+	listFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+	listFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	listFrame.Parent = hlFrame
+	local hlLayout = Instance.new("UIListLayout")
+	hlLayout.Padding = UDim.new(0, 3)
+	hlLayout.Parent = listFrame
+
+	refreshHighlightList = function()
+		for _, c in ipairs(listFrame:GetChildren()) do
+			if c:IsA("Frame") then c:Destroy() end
+		end
+		local names = {}
+		for name in pairs(highlightedPlayers) do
+			table.insert(names, name)
+		end
+		table.sort(names)
+		if #names == 0 then
+			local empty = Instance.new("TextLabel")
+			empty.Size = UDim2.new(1, -4, 0, 18)
+			empty.BackgroundTransparency = 1
+			empty.TextColor3 = Color3.fromRGB(160, 160, 160)
+			empty.Font = Enum.Font.Gotham
+			empty.TextSize = 12
+			empty.Text = "Никого не выделено"
+			empty.Parent = listFrame
+			return
+		end
+		for _, name in ipairs(names) do
+			local row = Instance.new("Frame")
+			row.Size = UDim2.new(1, -4, 0, 20)
+			row.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+			row.Parent = listFrame
+			local rc = Instance.new("UICorner")
+			rc.CornerRadius = UDim.new(0, 4)
+			rc.Parent = row
+			local lbl = Instance.new("TextLabel")
+			lbl.Size = UDim2.new(1, -26, 1, 0)
+			lbl.Position = UDim2.new(0, 4, 0, 0)
+			lbl.BackgroundTransparency = 1
+			lbl.TextColor3 = Color3.fromRGB(120, 255, 120)
+			lbl.Font = Enum.Font.Gotham
+			lbl.TextSize = 12
+			lbl.TextXAlignment = Enum.TextXAlignment.Left
+			lbl.TextTruncate = Enum.TextTruncate.AtEnd
+			lbl.Text = name
+			lbl.Parent = row
+			local rm = Instance.new("TextButton")
+			rm.Size = UDim2.new(0, 18, 1, 0)
+			rm.Position = UDim2.new(1, -20, 0, 0)
+			rm.BackgroundTransparency = 1
+			rm.TextColor3 = Color3.fromRGB(255, 90, 90)
+			rm.Font = Enum.Font.GothamBold
+			rm.TextSize = 13
+			rm.Text = "X"
+			rm.Parent = row
+			rm.MouseButton1Click:Connect(function()
+				removeHighlighted(name)
+				refreshHighlightList()
+			end)
+		end
+	end
+
+	local function tryAdd()
+		local nick = nickBox.Text
+		if nick == "" then
+			statusLabel.Text = "Введите ник"
+			return
+		end
+		local target = findPlayerByNick(nick)
+		if target then
+			addHighlighted(target)
+			statusLabel.Text = ""
+			nickBox.Text = ""
+			refreshHighlightList()
+		else
+			statusLabel.Text = "Игрок не найден"
+		end
+	end
+
+	addBtn.MouseButton1Click:Connect(tryAdd)
+	nickBox.FocusLost:Connect(function(enter)
+		if enter then tryAdd() end -- Enter тоже добавляет
+	end)
+
+	local hlOpen = false
+	hlBtn.MouseButton1Click:Connect(function()
+		hlOpen = not hlOpen
+		hlBtn.Text = "Выделение игрока " .. (hlOpen and "◀" or "▶")
+		if hlOpen then
+			hlFrame.Visible = true
+			hlFrame.Position = HL_CLOSED
+			tween(hlFrame, {Position = HL_OPEN}, 0.22)
+			refreshHighlightList()
+		else
+			local t = tween(hlFrame, {Position = HL_CLOSED}, 0.18)
+			t.Completed:Once(function()
+				hlFrame.Visible = false
+				hlFrame.Position = HL_OPEN
+			end)
+		end
+	end)
 
 	-- ---- кнопка закрыть ----
 	local Close = Instance.new("TextButton")
