@@ -273,7 +273,7 @@ local function init()
 	end)
 
 	----------------------------------------------------------------
-	-- МОДУЛЬ 5: ХИТБОКС ЗОМБИ (увеличение зоны попадания)
+	-- МОДУЛЬ 5: ХИТБОКС ЗОМБИ (отдельная деталь — зомби не замирает)
 	----------------------------------------------------------------
 	local function getZombieRoot(zombie)
 		return zombie:FindFirstChild("HumanoidRootPart")
@@ -281,48 +281,63 @@ local function init()
 			or zombie.PrimaryPart
 	end
 
-	local function setZombieHitbox(zombie, size)
+	-- создаёт/возвращает невидимый хитбокс, приваренный к зомби
+	local function getZombieHitbox(zombie)
 		local root = getZombieRoot(zombie)
-		if not root then return end
-		pcall(function()
-			if not root:GetAttribute("OriginalHitboxSize") then
-				root:SetAttribute("OriginalHitboxSize", root.Size)
-			end
-			root.Size = Vector3.new(size, size, size)
-			root.Transparency = 1
-			root.CanCollide = false
-			root.Massless = true
-		end)
+		if not root then return nil end
+
+		local hb = zombie:FindFirstChild("ZombieHitbox")
+		if hb then return hb end
+
+		hb = Instance.new("Part")
+		hb.Name = "ZombieHitbox"
+		hb.Shape = Enum.PartType.Ball
+		hb.Transparency = 1
+		hb.CanCollide = false
+		hb.CanTouch = true
+		hb.CanQuery = true   -- деталь видна для рейкастов — по ней идут попадания
+		hb.Massless = true
+		hb.Anchored = false
+
+		local weld = Instance.new("Weld")
+		weld.Part0 = root
+		weld.Part1 = hb
+		weld.C0 = CFrame.identity
+		weld.Parent = hb
+		hb.Parent = zombie
+
+		return hb
 	end
 
-	local function restoreZombieHitbox(zombie)
-		local root = getZombieRoot(zombie)
-		if not root then return end
-		local orig = root:GetAttribute("OriginalHitboxSize")
-		if orig then
-			pcall(function()
-				root.Size = orig
-				root.CanCollide = true
-			end)
+	local function applyHitboxToZombie(zombie)
+		if not S.zombies.targets[zombie.Name] then return end
+		local hb = getZombieHitbox(zombie)
+		if not hb then return end
+		hb.Size = Vector3.new(S.hitbox.size, S.hitbox.size, S.hitbox.size)
+	end
+
+	local function applyHitboxes()
+		if zombiesFolder and zombiesFolder.Parent then
+			for _, z in ipairs(zombiesFolder:GetChildren()) do
+				applyHitboxToZombie(z)
+			end
 		end
 	end
 
 	local function disableHitboxes()
 		if zombiesFolder and zombiesFolder.Parent then
 			for _, z in ipairs(zombiesFolder:GetChildren()) do
-				restoreZombieHitbox(z)
+				local hb = z:FindFirstChild("ZombieHitbox")
+				if hb then hb:Destroy() end
 			end
 		end
 	end
 
-	RunService.RenderStepped:Connect(function()
-		if not S.hitbox.enabled then return end
-		if zombiesFolder and zombiesFolder.Parent then
-			for _, z in ipairs(zombiesFolder:GetChildren()) do
-				if S.zombies.targets[z.Name] then
-					setZombieHitbox(z, S.hitbox.size)
-				end
-			end
+	-- держим хитбоксы в актуальном состоянии (новые зомби, слайдер и т.д.)
+	task.spawn(function()
+		while true do
+			task.wait(0.3)
+			if S.hitbox.enabled then applyHitboxes() end
 		end
 	end)
 
@@ -975,7 +990,7 @@ local function init()
 		function() return S.hitbox.enabled end,
 		function(v)
 			S.hitbox.enabled = v
-			if not v then disableHitboxes() end
+			if v then applyHitboxes() else disableHitboxes() end
 		end)
 
 	local hitboxLabel = Instance.new("TextLabel")
@@ -985,7 +1000,7 @@ local function init()
 	hitboxLabel.TextColor3 = Color3.new(1, 1, 1)
 	hitboxLabel.Font = Enum.Font.Gotham
 	hitboxLabel.TextSize = 12
-	hitboxLabel.Text = "Размер хитбокса краба WARN! (W.I.P): 5.0"
+	hitboxLabel.Text = "Размер хитбокса краба: 5.0"
 	hitboxLabel.Parent = Frame
 
 	local hitboxBack = Instance.new("Frame")
@@ -1007,8 +1022,9 @@ local function init()
 
 	local function setSizeHitbox(v)
 		S.hitbox.size = math.clamp(v, S.hitbox.min, S.hitbox.max)
-		hitboxLabel.Text = ("Размер хитбокса краба (W.I.P): %.1f"):format(S.hitbox.size)
+		hitboxLabel.Text = ("Размер хитбокса краба: %.1f"):format(S.hitbox.size)
 		hitboxFill.Size = UDim2.new((S.hitbox.size - S.hitbox.min) / (S.hitbox.max - S.hitbox.min), 0, 1, 0)
+		if S.hitbox.enabled then applyHitboxes() end
 	end
 
 	-- ---- блок Выделение игрока ----
