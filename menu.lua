@@ -141,7 +141,14 @@ local function init()
 			min = 0.5,
 			max = 6,
 		},
+		keybind = {
+			key = Enum.KeyCode.L,
+			waiting = false,
+		},
 	}
+
+	-- список выделенных по нику игроков (нужен и ESP, и модулю выделения)
+	local highlightedPlayers = {} -- [Name] = true
 
 	----------------------------------------------------------------
 	-- МОДУЛЬ 1: ПОДСВЕТКА ОРУЖИЯ (Items)
@@ -342,7 +349,7 @@ local function init()
 		h.FillTransparency = S.esp.transparency
 		h.OutlineTransparency = 0
 		h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-		h.Enabled = S.esp.enabled
+		h.Enabled = S.esp.enabled and not highlightedPlayers[target.Name]
 		h.Parent = character
 	end
 
@@ -468,7 +475,7 @@ local function init()
 					if not h then
 						addHighlight(character, target)
 					else
-						h.Enabled = S.esp.enabled
+						h.Enabled = S.esp.enabled and not highlightedPlayers[target.Name]
 						h.FillColor = getTeamColor(target)
 						h.FillTransparency = S.esp.transparency
 					end
@@ -556,7 +563,6 @@ local function init()
 	----------------------------------------------------------------
 	-- МОДУЛЬ 6: ВЫДЕЛЕНИЕ ИГРОКА ПО НИКУ (зелёная подсветка)
 	----------------------------------------------------------------
-	local highlightedPlayers = {} -- [Name] = true
 	local refreshHighlightList = nil -- назначим позже, в UI
 
 	local function highlightOnPlayer(target)
@@ -574,6 +580,9 @@ local function init()
 			h.Parent = char
 		end
 		h.Enabled = true
+		-- гасим ESP-подсветку, чтобы Highlight'ы не конфликтовали
+		local esp = char:FindFirstChild("TeamHighlight")
+		if esp then esp.Enabled = false end
 	end
 
 	local function clearHighlightFrom(target)
@@ -581,6 +590,9 @@ local function init()
 		if char then
 			local h = char:FindFirstChild("PlayerSelectHighlight")
 			if h then h:Destroy() end
+			-- возвращаем ESP-подсветку
+			local esp = char:FindFirstChild("TeamHighlight")
+			if esp then esp.Enabled = S.esp.enabled end
 		end
 	end
 
@@ -754,7 +766,7 @@ local function init()
 			for _, p in ipairs(Players:GetPlayers()) do
 				if p.Character then
 					local h = p.Character:FindFirstChild("TeamHighlight")
-					if h then h.Enabled = v end
+					if h then h.Enabled = v and not highlightedPlayers[p.Name] end
 				end
 			end
 		end)
@@ -1187,7 +1199,7 @@ local function init()
 	Close.Font = Enum.Font.GothamBold
 	Close.TextSize = 14
 	Close.TextColor3 = Color3.new(1, 1, 1)
-	Close.Text = "Close GUI (клавиша L)"
+	Close.Text = "Close GUI (клавиша " .. S.keybind.key.Name:upper() .. ")"
 	Close:SetAttribute("BaseColor", Color3.fromRGB(76, 76, 76))
 	local c6 = Instance.new("UICorner")
 	c6.CornerRadius = UDim.new(0, 8)
@@ -1212,8 +1224,113 @@ local function init()
 
 	Close.MouseButton1Click:Connect(toggleMenu)
 
+	-- ---- блок Настройки меню (светлая кнопка-шестерёнка) ----
+	local gearBtn = Instance.new("TextButton")
+	gearBtn.Parent = Frame
+	gearBtn.Size = UDim2.new(0, 26, 0, 26)
+	gearBtn.Position = UDim2.new(1, -30, 0, 1)
+	gearBtn.BackgroundColor3 = Color3.fromRGB(228, 228, 228)
+	gearBtn.TextColor3 = Color3.fromRGB(45, 45, 45)
+	gearBtn.Font = Enum.Font.GothamBold
+	gearBtn.TextSize = 16
+	gearBtn.Text = "⚙"
+	gearBtn:SetAttribute("BaseColor", Color3.fromRGB(228, 228, 228))
+	local cg = Instance.new("UICorner")
+	cg.CornerRadius = UDim.new(0, 8)
+	cg.Parent = gearBtn
+	addHoverEffect(gearBtn)
+
+	local keyFrame = Instance.new("Frame")
+	keyFrame.Size = UDim2.new(0, 175, 0, 96)
+	keyFrame.Position = UDim2.new(1, 6, 0, 0)
+	keyFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	keyFrame.BackgroundTransparency = 0.2
+	keyFrame.Visible = false
+	keyFrame.Parent = Frame
+	local ckf = Instance.new("UICorner")
+	ckf.CornerRadius = UDim.new(0, 8)
+	ckf.Parent = keyFrame
+
+	local KEY_OPEN = UDim2.new(1, 6, 0, 0)
+	local KEY_CLOSED = UDim2.new(1, 20, 0, 0)
+
+	local keyTitle = Instance.new("TextLabel")
+	keyTitle.Size = UDim2.new(1, -12, 0, 16)
+	keyTitle.Position = UDim2.new(0, 6, 0, 5)
+	keyTitle.BackgroundTransparency = 1
+	keyTitle.TextColor3 = Color3.new(1, 1, 1)
+	keyTitle.Font = Enum.Font.GothamBold
+	keyTitle.TextSize = 13
+	keyTitle.Text = "Настройки меню"
+	keyTitle.Parent = keyFrame
+
+	local bindBtn = Instance.new("TextButton")
+	bindBtn.Parent = keyFrame
+	bindBtn.Size = UDim2.new(1, -12, 0, 26)
+	bindBtn.Position = UDim2.new(0, 6, 0, 24)
+	bindBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	bindBtn.TextColor3 = Color3.new(1, 1, 1)
+	bindBtn.Font = Enum.Font.GothamBold
+	bindBtn.TextSize = 13
+	bindBtn.Text = "Клавиша меню: " .. S.keybind.key.Name:upper()
+	bindBtn:SetAttribute("BaseColor", Color3.fromRGB(70, 70, 70))
+	local cbb = Instance.new("UICorner")
+	cbb.CornerRadius = UDim.new(0, 6)
+	cbb.Parent = bindBtn
+	addHoverEffect(bindBtn)
+
+	local keyHint = Instance.new("TextLabel")
+	keyHint.Size = UDim2.new(1, -12, 0, 32)
+	keyHint.Position = UDim2.new(0, 6, 0, 54)
+	keyHint.BackgroundTransparency = 1
+	keyHint.TextColor3 = Color3.fromRGB(160, 160, 160)
+	keyHint.Font = Enum.Font.Gotham
+	keyHint.TextSize = 11
+	keyHint.TextWrapped = true
+	keyHint.Text = "Нажми кнопку, затем новую клавишу. Повторный клик — отмена."
+	keyHint.Parent = keyFrame
+
+	bindBtn.MouseButton1Click:Connect(function()
+		if S.keybind.waiting then
+			S.keybind.waiting = false
+			bindBtn.Text = "Клавиша меню: " .. S.keybind.key.Name:upper()
+		else
+			S.keybind.waiting = true
+			bindBtn.Text = "Нажмите клавишу..."
+		end
+	end)
+
+	local keyOpen = false
+	gearBtn.MouseButton1Click:Connect(function()
+		keyOpen = not keyOpen
+		if keyOpen then
+			S.keybind.waiting = false
+			bindBtn.Text = "Клавиша меню: " .. S.keybind.key.Name:upper()
+			keyFrame.Visible = true
+			keyFrame.Position = KEY_CLOSED
+			tween(keyFrame, {Position = KEY_OPEN}, 0.22)
+		else
+			local t = tween(keyFrame, {Position = KEY_CLOSED}, 0.18)
+			t.Completed:Once(function()
+				keyFrame.Visible = false
+				keyFrame.Position = KEY_OPEN
+			end)
+		end
+	end)
+
 	UserInputService.InputBegan:Connect(function(input, gpe)
-		if not gpe and input.KeyCode == Enum.KeyCode.L then
+		if S.keybind.waiting then
+			if input.UserInputType == Enum.UserInputType.Keyboard then
+				S.keybind.waiting = false
+				S.keybind.key = input.KeyCode
+				bindBtn.Text = "Клавиша меню: " .. input.KeyCode.Name:upper()
+				Close.Text = "Close GUI (клавиша " .. input.KeyCode.Name:upper() .. ")"
+			end
+			return
+		end
+		if not gpe
+			and input.UserInputType == Enum.UserInputType.Keyboard
+			and input.KeyCode == S.keybind.key then
 			toggleMenu()
 		end
 	end)
