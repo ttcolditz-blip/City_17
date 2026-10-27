@@ -1007,7 +1007,7 @@ local function init()
 
 	local function setSizeHitbox(v)
 		S.hitbox.size = math.clamp(v, S.hitbox.min, S.hitbox.max)
-		hitboxLabel.Text = ("Размер хитбокса краба: %.1f"):format(S.hitbox.size)
+		hitboxLabel.Text = ("Размер хитбокса краба (W.I.P): %.1f"):format(S.hitbox.size)
 		hitboxFill.Size = UDim2.new((S.hitbox.size - S.hitbox.min) / (S.hitbox.max - S.hitbox.min), 0, 1, 0)
 	end
 
