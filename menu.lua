@@ -985,7 +985,7 @@ local function init()
 	hitboxLabel.TextColor3 = Color3.new(1, 1, 1)
 	hitboxLabel.Font = Enum.Font.Gotham
 	hitboxLabel.TextSize = 12
-	hitboxLabel.Text = "Размер хитбокса краба: 5.0"
+	hitboxLabel.Text = "Размер хитбокса краба WARN! (W.I.P): 5.0"
 	hitboxLabel.Parent = Frame
 
 	local hitboxBack = Instance.new("Frame")
