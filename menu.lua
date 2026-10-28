@@ -119,13 +119,8 @@ local function init()
 				["FastZombie"] = true,
 				["ClassicZombie"] = true,
 				["PoisonHeadcrab"] = true,
+				["SpikewallZombie"] = true,
 			},
-		},
-		hitbox = {
-			enabled = false,
-			size = 5,
-			min = 1,
-			max = 6,
 		},
 		esp = {
 			enabled = false,
@@ -269,75 +264,6 @@ local function init()
 					end
 				end
 			end
-		end
-	end)
-
-	----------------------------------------------------------------
-	-- МОДУЛЬ 5: ХИТБОКС ЗОМБИ (отдельная деталь — зомби не замирает)
-	----------------------------------------------------------------
-	local function getZombieRoot(zombie)
-		return zombie:FindFirstChild("HumanoidRootPart")
-			or zombie:FindFirstChild("Torso")
-			or zombie.PrimaryPart
-	end
-
-	-- создаёт/возвращает невидимый хитбокс, приваренный к зомби
-	local function getZombieHitbox(zombie)
-		local root = getZombieRoot(zombie)
-		if not root then return nil end
-
-		local hb = zombie:FindFirstChild("ZombieHitbox")
-		if hb then return hb end
-
-		hb = Instance.new("Part")
-		hb.Name = "ZombieHitbox"
-		hb.Shape = Enum.PartType.Ball
-		hb.Transparency = 1
-		hb.CanCollide = false
-		hb.CanTouch = true
-		hb.CanQuery = true   -- деталь видна для рейкастов — по ней идут попадания
-		hb.Massless = true
-		hb.Anchored = false
-
-		local weld = Instance.new("Weld")
-		weld.Part0 = root
-		weld.Part1 = hb
-		weld.C0 = CFrame.identity
-		weld.Parent = hb
-		hb.Parent = zombie
-
-		return hb
-	end
-
-	local function applyHitboxToZombie(zombie)
-		if not S.zombies.targets[zombie.Name] then return end
-		local hb = getZombieHitbox(zombie)
-		if not hb then return end
-		hb.Size = Vector3.new(S.hitbox.size, S.hitbox.size, S.hitbox.size)
-	end
-
-	local function applyHitboxes()
-		if zombiesFolder and zombiesFolder.Parent then
-			for _, z in ipairs(zombiesFolder:GetChildren()) do
-				applyHitboxToZombie(z)
-			end
-		end
-	end
-
-	local function disableHitboxes()
-		if zombiesFolder and zombiesFolder.Parent then
-			for _, z in ipairs(zombiesFolder:GetChildren()) do
-				local hb = z:FindFirstChild("ZombieHitbox")
-				if hb then hb:Destroy() end
-			end
-		end
-	end
-
-	-- держим хитбоксы в актуальном состоянии (новые зомби, слайдер и т.д.)
-	task.spawn(function()
-		while true do
-			task.wait(0.3)
-			if S.hitbox.enabled then applyHitboxes() end
 		end
 	end)
 
@@ -666,7 +592,7 @@ local function init()
 	Frame.BackgroundTransparency = 1
 	Frame.BorderSizePixel = 0
 	Frame.Position = UDim2.new(0.157, 0, 0.07, 0)
-	Frame.Size = UDim2.new(0, 190, 0, 420)
+	Frame.Size = UDim2.new(0, 190, 0, 340)
 	Frame.Visible = false
 	Frame.Image = "rbxassetid://3570695787"
 	Frame.ImageColor3 = Color3.fromRGB(49, 49, 49)
@@ -985,53 +911,11 @@ local function init()
 		function() return S.zombies.enabled end,
 		function(v) setZombiesEnabled(v) end)
 
-	-- ---- блок Hitbox Зомби ----
-	makeToggle("Hitbox Зомби", UDim2.new(0.05, 0, 0, 236),
-		function() return S.hitbox.enabled end,
-		function(v)
-			S.hitbox.enabled = v
-			if v then applyHitboxes() else disableHitboxes() end
-		end)
-
-	local hitboxLabel = Instance.new("TextLabel")
-	hitboxLabel.Size = UDim2.new(1, -12, 0, 16)
-	hitboxLabel.Position = UDim2.new(0, 6, 0, 272)
-	hitboxLabel.BackgroundTransparency = 1
-	hitboxLabel.TextColor3 = Color3.new(1, 1, 1)
-	hitboxLabel.Font = Enum.Font.Gotham
-	hitboxLabel.TextSize = 12
-	hitboxLabel.Text = "Размер хитбокса краба: 5.0"
-	hitboxLabel.Parent = Frame
-
-	local hitboxBack = Instance.new("Frame")
-	hitboxBack.Size = UDim2.new(0.9, 0, 0, 10)
-	hitboxBack.Position = UDim2.new(0.05, 0, 0, 292)
-	hitboxBack.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	hitboxBack.Parent = Frame
-	local c7 = Instance.new("UICorner")
-	c7.CornerRadius = UDim.new(0, 6)
-	c7.Parent = hitboxBack
-
-	local hitboxFill = Instance.new("Frame")
-	hitboxFill.Size = UDim2.new(0.8, 0, 1, 0)
-	hitboxFill.BackgroundColor3 = Color3.fromRGB(255, 120, 0)
-	hitboxFill.Parent = hitboxBack
-	local c8 = Instance.new("UICorner")
-	c8.CornerRadius = UDim.new(0, 6)
-	c8.Parent = hitboxFill
-
-	local function setSizeHitbox(v)
-		S.hitbox.size = math.clamp(v, S.hitbox.min, S.hitbox.max)
-		hitboxLabel.Text = ("Размер хитбокса краба: %.1f"):format(S.hitbox.size)
-		hitboxFill.Size = UDim2.new((S.hitbox.size - S.hitbox.min) / (S.hitbox.max - S.hitbox.min), 0, 1, 0)
-		if S.hitbox.enabled then applyHitboxes() end
-	end
-
 	-- ---- блок Выделение игрока ----
 	local hlBtn = Instance.new("TextButton")
 	hlBtn.Parent = Frame
 	hlBtn.Size = UDim2.new(0.9, 0, 0, 26)
-	hlBtn.Position = UDim2.new(0.05, 0, 0, 312)
+	hlBtn.Position = UDim2.new(0.05, 0, 0, 236)
 	hlBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 	hlBtn.TextColor3 = Color3.new(1, 1, 1)
 	hlBtn.Font = Enum.Font.GothamBold
@@ -1397,7 +1281,6 @@ local function init()
 
 	bindSlider(sliderBack, sliderFill, function(r) setTransparency(1 - r) end)
 	bindSlider(sizeBack, sizeFill, function(r) setSize(S.head.min + r * (S.head.max - S.head.min)) end)
-	bindSlider(hitboxBack, hitboxFill, function(r) setSizeHitbox(S.hitbox.min + r * (S.hitbox.max - S.hitbox.min)) end)
 end
 
 ----------------------------------------------------------------
